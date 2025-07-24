@@ -1,40 +1,43 @@
-// See https://github.com/typicode/json-server#module
 const jsonServer = require('json-server');
+const fs = require('fs'); // Импортируем модуль fs
+const path = require('path');
 
 const server = jsonServer.create();
+const filePath = path.join(__dirname, 'db.json'); // Указываем путь к файлу db.json
 
-// Uncomment to allow write operations
-// const fs = require('fs')
-// const path = require('path')
-// const filePath = path.join('db.json')
-// const data = fs.readFileSync(filePath, "utf-8");
-// const db = JSON.parse(data);
-// const router = jsonServer.router(db)
+// Читаем данные из файла db.json
+const data = fs.readFileSync(filePath, "utf-8");
+const db = JSON.parse(data); // Парсим данные из JSON в объект
 
-// Comment out to allow write operations
-
-const fs = require('fs');
-const path = require('path');
-const filePath = path.join('db.json');
-const data = fs.readFileSync(filePath, 'utf-8');
-const db = JSON.parse(data);
+// Создаем маршрутизатор на основе прочитанных данных
 const router = jsonServer.router(db);
-//const router = jsonServer.router('db.json');
 
 const middlewares = jsonServer.defaults();
 
 server.use(middlewares);
-// Add this before server.use(router)
+
+// Перезапись маршрутов
 server.use(
   jsonServer.rewriter({
     '/api/*': '/$1',
     '/blog/:resource/:id/show': '/:resource/:id',
   })
 );
+
+// Обработка POST, PUT и DELETE запросов для записи в файл
+server.use((req, res, next) => {
+  if (req.method === 'POST' || req.method === 'PUT' || req.method === 'DELETE') {
+    // После обработки запроса обновляем файл db.json
+    const newData = JSON.stringify(router.db.getState(), null, 2);
+    fs.writeFileSync(filePath, newData, 'utf-8');
+  }
+  next();
+});
+
 server.use(router);
 server.listen(3000, () => {
   console.log('JSON Server is running');
 });
 
-// Export the Server API
+// Экспортируем сервер
 module.exports = server;
